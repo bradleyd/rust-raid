@@ -1,0 +1,76 @@
+[meta]
+id = "crystal-ball"
+room_number = 1
+title = "The Crystal Ball"
+concept = "multiple_immutable_borrows"
+
+[narrative]
+intro = """
+A crystal ball rests on a velvet pillow. Three seers surround it,
+each wanting to gaze into its depths simultaneously.
+
+"We only wish to look," they say. "None of us will disturb it."
+
+The current spell tries to give the ball to each seer. But there's
+only one ball, and giving it away means losing it...
+"""
+
+success = """
+The three seers peer into the crystal together, each seeing their
+own visions. The ball remains undisturbed on its pillow.
+
+> WORDS OF WISDOM: Multiple immutable borrows (&) can coexist.
+> If everyone is just reading, there's no conflict. "Many readers,
+> no writers" is always safe. This is Rust's superpower for
+> concurrent read access.
+
+The visions align. The path forward becomes clear...
+"""
+
+failure_compile = "The crystal clouds over. The spell's logic is flawed..."
+failure_output = "The seers see nothing. The ritual failed."
+
+hints = [
+    "Each gaze() takes ownership. But the seers only need to LOOK.",
+    "Use & to let each seer borrow the ball without taking it.",
+    "Change gaze(ball) to gaze(&ball) and update the function signature."
+]
+
+alternative_solution = "Did you clone the ball for each seer? That works, but borrowing is cheaper—no copies needed when everyone just wants to read."
+
+[puzzle]
+code = '''
+fn main() {
+    let ball = String::from("visions of futures untold");
+
+    gaze_seer_one(ball);
+    gaze_seer_two(ball);
+    gaze_seer_three(ball);
+
+    println!("The ball remains: {}", ball);
+}
+
+fn gaze_seer_one(b: String) {
+    println!("Seer 1 sees: {b}");
+}
+
+fn gaze_seer_two(b: String) {
+    println!("Seer 2 sees: {b}");
+}
+
+fn gaze_seer_three(b: String) {
+    println!("Seer 3 sees: {b}");
+}
+'''
+
+expected_output = """Seer 1 sees: visions of futures untold
+Seer 2 sees: visions of futures untold
+Seer 3 sees: visions of futures untold
+The ball remains: visions of futures untold"""
+
+locked_lines = [9]
+
+[scoring]
+par_time_seconds = 180
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2

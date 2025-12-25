@@ -7,6 +7,8 @@ pub struct Room {
     #[serde(rename = "puzzle")]
     pub challenge: Challenge,
     pub scoring: Option<Scoring>,
+    #[serde(default)]
+    pub rewards: Option<Rewards>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,6 +28,14 @@ pub struct Narrative {
     pub hints: Vec<String>,
     #[serde(default)]
     pub alternative_solution: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+pub struct Rewards {
+    #[serde(default)]
+    pub grants_item: Option<String>,
+    #[serde(default)]
+    pub item_description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

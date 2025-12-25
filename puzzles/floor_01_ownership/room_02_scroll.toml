@@ -61,3 +61,7 @@ locked_lines = [10, 11, 12]
 par_time_seconds = 180
 hint_penalty_hp = 5
 wrong_answer_penalty_hp = 2
+
+[rewards]
+grants_item = "Sacred Scroll"
+item_description = "Ancient parchment inscribed with the words: 'Borrow to look, own to keep.'"

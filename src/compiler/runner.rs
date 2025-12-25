@@ -3,13 +3,6 @@ use std::process::Command;
 use tempfile::TempDir;
 
 #[derive(Debug)]
-pub struct CompileResult {
-    pub success: bool,
-    pub stderr: String,
-    pub stdout: String,
-}
-
-#[derive(Debug)]
 pub enum ValidationResult {
     CompileError(String),
     WrongOutput { expected: String, got: String },

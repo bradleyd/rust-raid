@@ -46,6 +46,7 @@ impl MenuOption {
 struct App<'a> {
     rooms: Vec<Room>,
     current_room: usize,
+    current_level: usize,
     editor: TextArea<'a>,
     locked_lines: Vec<usize>,
     message: String,
@@ -55,6 +56,7 @@ struct App<'a> {
     menu_selection: MenuOption,
     hp: u32,
     gold: u32,
+    inventory: Vec<String>,
     hints_used_room: usize,
     hints_used_total: usize,
     compile_errors_total: u32,
@@ -79,6 +81,7 @@ impl<'a> App<'a> {
         App {
             rooms,
             current_room: 0,
+            current_level: 1,
             editor,
             locked_lines,
             message: String::from("Fix the code. The compiler will guide you..."),
@@ -88,6 +91,7 @@ impl<'a> App<'a> {
             menu_selection: MenuOption::NewGame,
             hp: 100,
             gold: 0,
+            inventory: Vec::new(),
             hints_used_room: 0,
             hints_used_total: 0,
             compile_errors_total: 0,
@@ -104,10 +108,34 @@ impl<'a> App<'a> {
         self.state = GameState::Playing;
         self.hp = 100;
         self.gold = 0;
+        self.inventory.clear();
+        self.current_level = 1;
         self.hints_used_room = 0;
         self.hints_used_total = 0;
         self.compile_errors_total = 0;
         self.load_room(0);
+    }
+
+    fn load_level(&mut self, level: usize) -> Result<(), String> {
+        let floor_name = match level {
+            1 => "floor_01_ownership",
+            2 => "floor_02_borrowing",
+            _ => return Err(format!("Level {} not implemented yet", level)),
+        };
+        let floor_path = std::path::Path::new("puzzles").join(floor_name);
+        match load_floor(&floor_path) {
+            Ok(rooms) if !rooms.is_empty() => {
+                self.rooms = rooms;
+                self.current_level = level;
+                self.current_room = 0;
+                self.hints_used_total = 0;
+                self.compile_errors_total = 0;
+                self.load_room(0);
+                Ok(())
+            }
+            Ok(_) => Err(format!("No rooms found in level {}", level)),
+            Err(e) => Err(format!("Failed to load level {}: {}", level, e)),
+        }
     }
 
     fn is_line_locked(&self, line: usize) -> bool {
@@ -124,7 +152,7 @@ impl<'a> App<'a> {
         self.editor.set_block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Code Editor [F5: Run | F1: Hint | :q Quit] "),
+                .title(" Code Editor [F5: Run | F1: Hint | F2: Keys | :q] "),
         );
         self.editor
             .set_line_number_style(Style::default().fg(Color::DarkGray));
@@ -139,11 +167,40 @@ impl<'a> App<'a> {
         if self.current_room + 1 < self.rooms.len() {
             self.load_room(self.current_room + 1);
         } else {
+            // Check for required items to proceed
+            let has_scroll = self.inventory.iter().any(|i| i == "Sacred Scroll");
+
+            if !has_scroll {
+                self.message = "The twin doors swing open, but an invisible barrier blocks your path.\n\n\
+                    \"You cannot pass without the Sacred Scroll. There is knowledge\n\
+                    inscribed upon it that you will need in the depths below.\"\n\n\
+                    Perhaps you missed something in an earlier chamber...".to_string();
+                self.message_style = Style::default().fg(Color::Magenta);
+                return;
+            }
+
             self.state = GameState::LevelComplete;
             let perfect = self.hints_used_total == 0 && self.compile_errors_total == 0;
+            let inventory_display = if self.inventory.is_empty() {
+                "  (empty)".to_string()
+            } else {
+                self.inventory.iter().map(|i| format!("  - {}", i)).collect::<Vec<_>>().join("\n")
+            };
+
+            let level_name = match self.current_level {
+                1 => "Ownership",
+                2 => "Borrowing",
+                _ => "Unknown",
+            };
+            let next_action = if self.current_level < 2 {
+                "Press ENTER to descend to Level 2: Borrowing..."
+            } else {
+                "Press ENTER to continue..."
+            };
+
             self.message = format!(
-                "=== LEVEL 1 COMPLETE! ===\n\n\
-                You've mastered the art of Ownership.{}\n\n\
+                "=== LEVEL {} COMPLETE! ===\n\n\
+                You've mastered the art of {}.{}\n\n\
                 ╔══════════════════════════╗\n\
                 ║  LEVEL STATS             ║\n\
                 ╠══════════════════════════╣\n\
@@ -153,13 +210,18 @@ impl<'a> App<'a> {
                 ║  Gold earned:      {:>4}  ║\n\
                 ║  HP remaining:     {:>4}  ║\n\
                 ╚══════════════════════════╝\n\n\
-                Press any key to exit...",
+                INVENTORY:\n{}\n\n\
+                {}",
+                self.current_level,
+                level_name,
                 if perfect { " PERFECT RUN!" } else { "" },
                 self.rooms.len(),
                 self.compile_errors_total,
                 self.hints_used_total,
                 self.gold,
-                self.hp
+                self.hp,
+                inventory_display,
+                next_action
             );
             self.message_style = Style::default()
                 .fg(Color::Green)
@@ -181,6 +243,20 @@ impl<'a> App<'a> {
                 let earned = base_gold.saturating_sub(hint_penalty).max(10);
                 self.gold += earned;
 
+                // Collect item if room grants one
+                let item_info = self.room().rewards.as_ref().and_then(|r| {
+                    r.grants_item.as_ref().map(|item| {
+                        let desc = r.item_description.as_deref().unwrap_or("A mysterious artifact");
+                        (item.clone(), desc.to_string())
+                    })
+                });
+                let item_msg = if let Some((item, desc)) = item_info {
+                    self.inventory.push(item.clone());
+                    format!("\n\n** ITEM ACQUIRED: {} **\n{}", item, desc)
+                } else {
+                    String::new()
+                };
+
                 let alt = self
                     .room()
                     .narrative
@@ -190,10 +266,11 @@ impl<'a> App<'a> {
                     .unwrap_or_default();
 
                 self.message = format!(
-                    "*** ROOM CLEARED! ***  +{} gold{}  [ Press ENTER ]\n\n{}{}",
+                    "*** ROOM CLEARED! ***  +{} gold{}  [ Press ENTER ]\n\n{}{}{}",
                     earned,
                     if self.hints_used_room == 0 { " (perfect!)" } else { "" },
                     self.room().narrative.success,
+                    item_msg,
                     alt
                 );
                 self.message_style = Style::default().fg(Color::Yellow);
@@ -240,6 +317,81 @@ impl<'a> App<'a> {
                 self.message = format!("System error: {}", e);
                 self.message_style = Style::default().fg(Color::Magenta);
             }
+        }
+    }
+
+    fn show_inventory(&mut self) {
+        self.message_scroll = 0;
+        if self.inventory.is_empty() {
+            self.message = "🎒 INVENTORY\n\n  (empty)\n\n  Your bag is light. Solve puzzles to collect artifacts!".to_string();
+        } else {
+            let items: Vec<String> = self.inventory.iter().map(|item| {
+                let emoji = match item.as_str() {
+                    "Sacred Scroll" => "📜",
+                    "Twin Keys" => "🗝️",
+                    _ => "✨",
+                };
+                format!("  {} {}", emoji, item)
+            }).collect();
+            self.message = format!(
+                "🎒 INVENTORY\n\n{}\n\n  {} item(s) collected",
+                items.join("\n"),
+                self.inventory.len()
+            );
+        }
+        self.message_style = Style::default().fg(Color::Cyan);
+    }
+
+    fn show_keys(&mut self) {
+        self.message_scroll = 0;
+        let scroll_key = if cfg!(target_os = "macos") { "Fn+↑/↓" } else { "PgUp/Dn" };
+        self.message = format!(
+"⌨️  KEYBOARD SHORTCUTS (F2)
+
+ GAME
+  F5 / Ctrl+R   Run code
+  F1            Show hint (-5 HP)
+  F2            This help screen
+  {}       Scroll messages
+  :             Enter command mode
+
+ NAVIGATION
+  ←↑↓→          Move cursor
+  Home/End      Start/end of line
+  Ctrl+←/→      Jump by word
+  Ctrl+Home/End Start/end of file
+
+ EDITING
+  Ctrl+D        Delete entire line
+  Ctrl+K        Delete to end of line
+  Ctrl+U        Delete to start of line
+  Ctrl+W        Delete word before cursor
+  Ctrl+C/X/V    Copy/cut/paste (selection)
+
+ COMMANDS (:)
+  :q            Quit game
+  :hint         Show hint
+  :inv          Show inventory
+  :keys         This help", scroll_key);
+        self.message_style = Style::default().fg(Color::Cyan);
+    }
+
+    fn delete_line(&mut self) {
+        let (row, _) = self.editor.cursor();
+        if self.is_line_locked(row) {
+            self.message = "That line is sealed by ancient magic. It cannot be changed.".to_string();
+            self.message_style = Style::default().fg(Color::Magenta);
+            return;
+        }
+        // Move to start of line, select to end, delete
+        self.editor.move_cursor(tui_textarea::CursorMove::Head);
+        self.editor.move_cursor(tui_textarea::CursorMove::End);
+        self.editor.start_selection();
+        self.editor.move_cursor(tui_textarea::CursorMove::Head);
+        self.editor.cut();
+        // Remove the now-empty line if not the only line
+        if self.editor.lines().len() > 1 {
+            self.editor.delete_newline();
         }
     }
 
@@ -305,12 +457,51 @@ fn main() -> Result<()> {
                     continue;
                 }
                 GameState::RoomComplete => {
-                    if key.code == KeyCode::Enter {
-                        app.advance_room();
+                    match key.code {
+                        KeyCode::Enter => app.advance_room(),
+                        KeyCode::PageDown => {
+                            let lines = app.message.lines().count() as u16;
+                            if app.message_scroll < lines.saturating_sub(5) {
+                                app.message_scroll += 3;
+                            }
+                        }
+                        KeyCode::PageUp => {
+                            app.message_scroll = app.message_scroll.saturating_sub(3);
+                        }
+                        _ => {}
                     }
                     continue;
                 }
-                GameState::LevelComplete | GameState::GameOver => {
+                GameState::LevelComplete => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            if app.current_level < 2 {
+                                match app.load_level(app.current_level + 1) {
+                                    Ok(()) => {}
+                                    Err(e) => {
+                                        app.message = format!("Cannot proceed: {}", e);
+                                        app.message_style = Style::default().fg(Color::Red);
+                                    }
+                                }
+                            } else {
+                                // Game complete!
+                                break;
+                            }
+                        }
+                        KeyCode::PageDown => {
+                            let lines = app.message.lines().count() as u16;
+                            if app.message_scroll < lines.saturating_sub(5) {
+                                app.message_scroll += 3;
+                            }
+                        }
+                        KeyCode::PageUp => {
+                            app.message_scroll = app.message_scroll.saturating_sub(3);
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+                GameState::GameOver => {
                     break;
                 }
                 GameState::Playing => {}
@@ -330,10 +521,14 @@ fn main() -> Result<()> {
                             app.message = "There is no save... only survival.".to_string();
                             app.message_style = Style::default().fg(Color::Yellow);
                         } else if app.command_buffer == "help" {
-                            app.message = "Commands: :q (quit), :hint (show hint)".to_string();
+                            app.message = "Commands: :q (quit), :hint (show hint), :inv (inventory)".to_string();
                             app.message_style = Style::default().fg(Color::Cyan);
                         } else if app.command_buffer == "hint" {
                             app.show_hint();
+                        } else if app.command_buffer == "inv" || app.command_buffer == "inventory" {
+                            app.show_inventory();
+                        } else if app.command_buffer == "keys" || app.command_buffer == "shortcuts" {
+                            app.show_keys();
                         } else if !app.command_buffer.is_empty() {
                             app.message = format!("Unknown command: {}", app.command_buffer);
                             app.message_style = Style::default().fg(Color::Red);
@@ -380,6 +575,12 @@ fn main() -> Result<()> {
                 (KeyCode::F(1), _) => {
                     app.show_hint();
                 }
+                (KeyCode::F(2), _) => {
+                    app.show_keys();
+                }
+                (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
+                    app.delete_line();
+                }
                 _ => {
                     let (cursor_row, _) = app.editor.cursor();
                     let is_destructive = matches!(
@@ -416,7 +617,20 @@ fn main() -> Result<()> {
 
     match app.state {
         GameState::LevelComplete => {
-            println!("\nCongratulations! You've completed Level 1: Ownership.\n");
+            if app.current_level >= 2 {
+                println!("\n=== VICTORY! ===");
+                println!("You've conquered the Borrow Dungeon!");
+                println!("Ownership and Borrowing hold no secrets from you.\n");
+                println!("Final Stats:");
+                println!("  Gold: {}", app.gold);
+                println!("  HP: {}", app.hp);
+                println!("  Items: {}\n", app.inventory.join(", "));
+            } else {
+                println!("\nCongratulations! You've completed Level {}: {}.\n",
+                    app.current_level,
+                    match app.current_level { 1 => "Ownership", 2 => "Borrowing", _ => "Unknown" }
+                );
+            }
         }
         GameState::GameOver => {
             println!("\nGame Over. The borrow checker claimed another victim.\n");
@@ -444,7 +658,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // Status bar
     let room_progress = format!(
-        " Room {}/{} ",
+        " L{} Room {}/{} ",
+        app.current_level,
         app.current_room + 1,
         app.rooms.len()
     );

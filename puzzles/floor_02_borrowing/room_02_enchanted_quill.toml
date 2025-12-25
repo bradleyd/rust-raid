@@ -1,0 +1,64 @@
+[meta]
+id = "enchanted-quill"
+room_number = 2
+title = "The Enchanted Quill"
+concept = "mutable_borrow_exclusive"
+
+[narrative]
+intro = """
+A guestbook lies open on a pedestal. An enchanted quill hovers nearby.
+Two adventurers want to sign their names.
+
+But the quill is temperamental—it refuses to serve two masters at once.
+The current spell creates two quills from one, which the magic forbids.
+
+Only one hand may guide the quill at a time...
+"""
+
+success = """
+Alice signs with a flourish. The quill returns. Bob takes his turn.
+Two signatures, one quill, no conflict.
+
+> WORDS OF WISDOM: Only ONE mutable borrow (&mut) can exist at a time.
+> This prevents data races—no two writers can corrupt each other.
+> "One writer, period." Finish writing before passing the pen.
+
+The guestbook glows with acceptance...
+"""
+
+failure_compile = "The quill sputters and refuses. Two hands grasp at once..."
+failure_output = "The signatures are garbled. Something went wrong."
+
+hints = [
+    "You can't have two &mut references to the same data at once.",
+    "Let Alice finish signing before Bob gets his turn.",
+    "Remove one of the &mut borrows, or restructure so they don't overlap."
+]
+
+alternative_solution = "The key insight: mutable borrows are exclusive. Structure your code so mutations happen one at a time, not overlapping."
+
+[puzzle]
+code = '''
+fn main() {
+    let mut guestbook = String::from("Visitors:\n");
+
+    let quill_alice = &mut guestbook;
+    let quill_bob = &mut guestbook;
+
+    quill_alice.push_str("Alice\n");
+    quill_bob.push_str("Bob\n");
+
+    println!("{guestbook}");
+}
+'''
+
+expected_output = """Visitors:
+Alice
+Bob"""
+
+locked_lines = [2, 11]
+
+[scoring]
+par_time_seconds = 180
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2
