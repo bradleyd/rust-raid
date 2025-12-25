@@ -1,0 +1,63 @@
+[meta]
+id = "scroll"
+room_number = 2
+title = "The Ancient Scroll"
+concept = "borrow_to_read"
+
+[narrative]
+intro = """
+A scroll rests on a pedestal, its edges crumbling with age.
+Beyond it, your bag waits to carry treasures forward.
+
+You must read the scroll's wisdom AND take it with you.
+But the reading ritual currently consumes what it touches...
+
+Perhaps there's a way to look without taking?
+"""
+
+success = """
+You peer at the scroll without disturbing it, absorbing its wisdom.
+Then, carefully, you roll it up and place it in your bag.
+
+> WORDS OF WISDOM: Use & to borrow a reference—a way to look
+> without taking ownership. The original owner keeps control.
+> "Borrow to read, own to keep."
+
+The passage ahead glows with new understanding...
+"""
+
+failure_compile = "The scroll resists your approach. The ritual is flawed..."
+failure_output = "The words form, but something is missing."
+
+hints = [
+    "read_scroll takes ownership, but you need the scroll afterward for store_in_bag.",
+    "What if read_scroll just LOOKED at the scroll instead of taking it? Use & to borrow.",
+    "Change the function to take &String instead of String, and pass &scroll instead of scroll."
+]
+
+[puzzle]
+code = '''
+fn main() {
+    let scroll = String::from("Borrow to look, own to keep.");
+    read_scroll(scroll);
+    store_in_bag(scroll);
+}
+
+fn read_scroll(s: String) {
+    println!("The scroll reads: {s}");
+}
+
+fn store_in_bag(s: String) {
+    println!("Stored in bag: {s}");
+}
+'''
+
+expected_output = """The scroll reads: Borrow to look, own to keep.
+Stored in bag: Borrow to look, own to keep."""
+
+locked_lines = [10, 11, 12]
+
+[scoring]
+par_time_seconds = 180
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2

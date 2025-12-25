@@ -1,0 +1,61 @@
+[meta]
+id = "torch"
+room_number = 1
+title = "The Torch"
+concept = "ownership_basics"
+
+[narrative]
+intro = """
+A torch flickers on the wall. Ahead, a stone statue guards the passage,
+shrouded in darkness. Beyond the statue... more darkness.
+
+You'll need to light the statue to proceed, but you'll also need light
+for the corridors ahead.
+
+The compiler stirs. It sees what you're about to attempt...
+"""
+
+success = """
+The statue accepts the flame. Light floods the chamber, revealing the path.
+
+You've made peace with letting go. The torch served its purpose here.
+
+> WORDS OF WISDOM: In Rust, ask yourself early: "Who needs this value,
+> and when?" If something must be consumed, plan for it. Don't pass
+> ownership until you're truly done with a value.
+
+The passage groans open...
+"""
+
+failure_compile = "The torch flickers uncertainly. The compiler whispers from the shadows..."
+failure_output = "The flame sputters. Something isn't right."
+
+hints = [
+    "You gave the torch away, but then tried to use it. Ownership has transferred.",
+    "Once light_statue() takes the torch, it's gone. You can't carry what you don't own.",
+    "Accept the loss: remove the line that tries to use the torch after giving it away."
+]
+
+alternative_solution = "Used clone()? That works! But consider: did you really need two torches, or could you just let go? Sometimes the simplest fix is removing code, not adding it."
+
+[puzzle]
+code = '''
+fn main() {
+    let torch = String::from("flame");
+    light_statue(torch);
+    println!("Using torch to see ahead: {torch}");
+}
+
+fn light_statue(t: String) {
+    println!("Statue illuminated with {t}");
+}
+'''
+
+expected_output = "Statue illuminated with flame"
+
+locked_lines = [7, 8, 9]
+
+[scoring]
+par_time_seconds = 120
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2
