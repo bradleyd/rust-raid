@@ -1,64 +1,91 @@
 [meta]
-id = "enchanted-quill"
+id = "dual-levers"
 room_number = 2
-title = "The Enchanted Quill"
-concept = "mutable_borrow_exclusive"
+title = "The Dual Levers"
+concept = "one_writer_only"
 
 [narrative]
+entry = """
+Through the hidden door, a narrow passage leads deeper.
+
+Torchlight flickers ahead. You hear grinding stone—
+some ancient mechanism awaits.
+"""
+
 intro = """
-A guestbook lies open on a pedestal. An enchanted quill hovers nearby.
-Two adventurers want to sign their names.
+Two levers control the gate mechanism. A sign reads:
+"PULL EACH LEVER IN SEQUENCE TO OPEN"
 
-But the quill is temperamental—it refuses to serve two masters at once.
-The current spell creates two quills from one, which the magic forbids.
+You and your ally each grab a lever at the same time,
+ready to pull. But the mechanism jams!
 
-Only one hand may guide the quill at a time...
+The ancient machinery can't handle two hands pulling
+at once. One must release before the other can act.
 """
 
 success = """
-Alice signs with a flourish. The quill returns. Bob takes his turn.
-Two signatures, one quill, no conflict.
+You pull your lever, release it. Your ally pulls theirs.
+CLUNK. CLUNK. The gate rises!
 
-> WORDS OF WISDOM: Only ONE mutable borrow (&mut) can exist at a time.
-> This prevents data races—no two writers can corrupt each other.
-> "One writer, period." Finish writing before passing the pen.
+> WORDS OF WISDOM: Only ONE mutable borrow (&mut) can
+> exist at a time. Two writers would corrupt the data.
+>
+> Think of it like a lock - one key holder at a time.
+> Finish your mutation, then pass control.
 
-The guestbook glows with acceptance...
+The gate rumbles open. Something moves in the darkness ahead...
 """
 
-failure_compile = "The quill sputters and refuses. Two hands grasp at once..."
-failure_output = "The signatures are garbled. Something went wrong."
+failure_compile = "The mechanism jams! Two hands grip the levers at once..."
+failure_output = "The gate remains sealed."
 
 hints = [
-    "You can't have two &mut references to the same data at once.",
-    "Let Alice finish signing before Bob gets his turn.",
-    "Remove one of the &mut borrows, or restructure so they don't overlap."
+    "Two &mut references exist at the same time. The mechanism can't handle that.",
+    "You need to USE the first lever, then create the second reference.",
+    "Remove the early &mut declarations. Just use mechanism.push_str() directly, twice."
 ]
 
-alternative_solution = "The key insight: mutable borrows are exclusive. Structure your code so mutations happen one at a time, not overlapping."
+alternative_solution = "The simplest fix: don't create named &mut variables at all. Just call the method directly on the data twice in sequence."
 
 [puzzle]
 code = '''
 fn main() {
-    let mut guestbook = String::from("Visitors:\n");
+    let mut mechanism = String::from("[gate:");
 
-    let quill_alice = &mut guestbook;
-    let quill_bob = &mut guestbook;
+    let lever1 = &mut mechanism;
+    let lever2 = &mut mechanism;
 
-    quill_alice.push_str("Alice\n");
-    quill_bob.push_str("Bob\n");
+    lever1.push_str(" LEFT");
+    lever2.push_str(" RIGHT]");
 
-    println!("{guestbook}");
+    println!("{mechanism}");
 }
 '''
 
-expected_output = """Visitors:
-Alice
-Bob"""
+expected_output = "[gate: LEFT RIGHT]"
 
-locked_lines = [2, 11]
+locked_lines = [2, 9]
 
 [scoring]
 par_time_seconds = 180
 hint_penalty_hp = 5
 wrong_answer_penalty_hp = 2
+
+[codex]
+title = "One Writer Rule"
+description = """
+Only ONE &mut reference can exist at a time.
+Two writers would corrupt the data.
+
+  let mut data = String::new();
+
+  // BAD: two &mut at once
+  let a = &mut data;
+  let b = &mut data;  // ERROR!
+
+  // GOOD: one at a time
+  data.push_str("first");
+  data.push_str("second");
+
+Finish mutating, then pass control.
+"""

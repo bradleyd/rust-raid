@@ -5,6 +5,13 @@ title = "The Ancient Scroll"
 concept = "borrow_to_read"
 
 [narrative]
+entry = """
+A hidden passage opens behind the extinguished brazier.
+
+You squeeze through into a dusty antechamber.
+Cobwebs brush your face as you push forward...
+"""
+
 intro = """
 A scroll rests on a pedestal, its edges crumbling with age.
 Beyond it, your bag waits to carry treasures forward.
@@ -65,3 +72,17 @@ wrong_answer_penalty_hp = 2
 [rewards]
 grants_item = "Sacred Scroll"
 item_description = "Ancient parchment inscribed with the words: 'Borrow to look, own to keep.'"
+
+[codex]
+title = "Borrowing (&)"
+description = """
+Use & to borrow a reference - look without taking.
+The original owner keeps the value.
+
+  fn read_scroll(s: &String) {  // borrows
+      println!("{s}");
+  }
+
+  read_scroll(&scroll);  // lend, don't give
+  // scroll still yours!
+"""

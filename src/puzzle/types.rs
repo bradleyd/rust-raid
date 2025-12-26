@@ -9,6 +9,14 @@ pub struct Room {
     pub scoring: Option<Scoring>,
     #[serde(default)]
     pub rewards: Option<Rewards>,
+    #[serde(default)]
+    pub codex: Option<CodexEntry>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CodexEntry {
+    pub title: String,
+    pub description: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -21,6 +29,8 @@ pub struct RoomMeta {
 
 #[derive(Debug, Deserialize)]
 pub struct Narrative {
+    #[serde(default)]
+    pub entry: Option<String>,  // Shown when entering room (transition from previous)
     pub intro: String,
     pub success: String,
     pub failure_compile: String,

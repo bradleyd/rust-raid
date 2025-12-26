@@ -19,13 +19,15 @@ use std::io;
 use tui_textarea::TextArea;
 
 use compiler::{validate_solution, ValidationResult};
-use puzzle::{load_floor, Room};
+use puzzle::{load_floor, CodexEntry, Room};
 
 enum GameState {
     TitleScreen,
     Playing,
     RoomComplete,
+    RoomTransition,  // Shows entry narrative when moving to next room
     LevelComplete,
+    ViewingCodex,
     GameOver,
 }
 
@@ -49,6 +51,7 @@ struct App<'a> {
     current_level: usize,
     editor: TextArea<'a>,
     locked_lines: Vec<usize>,
+    yank_buffer: String,
     message: String,
     message_style: Style,
     message_scroll: u16,
@@ -57,6 +60,8 @@ struct App<'a> {
     hp: u32,
     gold: u32,
     inventory: Vec<String>,
+    codex: Vec<CodexEntry>,
+    codex_scroll: usize,
     hints_used_room: usize,
     hints_used_total: usize,
     compile_errors_total: u32,
@@ -84,6 +89,7 @@ impl<'a> App<'a> {
             current_level: 1,
             editor,
             locked_lines,
+            yank_buffer: String::new(),
             message: String::from("Fix the code. The compiler will guide you..."),
             message_style: Style::default().fg(Color::Yellow),
             message_scroll: 0,
@@ -92,6 +98,8 @@ impl<'a> App<'a> {
             hp: 100,
             gold: 0,
             inventory: Vec::new(),
+            codex: Vec::new(),
+            codex_scroll: 0,
             hints_used_room: 0,
             hints_used_total: 0,
             compile_errors_total: 0,
@@ -165,18 +173,33 @@ impl<'a> App<'a> {
 
     fn advance_room(&mut self) {
         if self.current_room + 1 < self.rooms.len() {
-            self.load_room(self.current_room + 1);
+            let next_room = &self.rooms[self.current_room + 1];
+            // Check if next room has entry narrative for transition
+            if let Some(entry) = &next_room.narrative.entry {
+                self.state = GameState::RoomTransition;
+                self.message = format!(
+                    "{}\n\n\
+                    ─────────────────────────────────\n\
+                    Press ENTER to continue...",
+                    entry.trim()
+                );
+                self.message_style = Style::default().fg(Color::Cyan);
+                self.message_scroll = 0;
+            } else {
+                self.load_room(self.current_room + 1);
+            }
         } else {
-            // Check for required items to proceed
-            let has_scroll = self.inventory.iter().any(|i| i == "Sacred Scroll");
-
-            if !has_scroll {
-                self.message = "The twin doors swing open, but an invisible barrier blocks your path.\n\n\
-                    \"You cannot pass without the Sacred Scroll. There is knowledge\n\
-                    inscribed upon it that you will need in the depths below.\"\n\n\
-                    Perhaps you missed something in an earlier chamber...".to_string();
-                self.message_style = Style::default().fg(Color::Magenta);
-                return;
+            // Check for required items to proceed to next level
+            if self.current_level == 1 {
+                let has_scroll = self.inventory.iter().any(|i| i == "Sacred Scroll");
+                if !has_scroll {
+                    self.message = "The twin doors swing open, but an invisible barrier blocks your path.\n\n\
+                        \"You cannot pass without the Sacred Scroll. There is knowledge\n\
+                        inscribed upon it that you will need in the depths below.\"\n\n\
+                        Perhaps you missed something in an earlier chamber...".to_string();
+                    self.message_style = Style::default().fg(Color::Magenta);
+                    return;
+                }
             }
 
             self.state = GameState::LevelComplete;
@@ -257,6 +280,20 @@ impl<'a> App<'a> {
                     String::new()
                 };
 
+                // Collect codex entry if room has one
+                let codex_msg = if let Some(entry) = self.room().codex.clone() {
+                    // Only add if not already in codex (avoid duplicates on replay)
+                    if !self.codex.iter().any(|e| e.title == entry.title) {
+                        let title = entry.title.clone();
+                        self.codex.push(entry);
+                        format!("\n\n** CODEX UPDATED: {} **\nType :codex to review your knowledge.", title)
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                };
+
                 let alt = self
                     .room()
                     .narrative
@@ -266,11 +303,12 @@ impl<'a> App<'a> {
                     .unwrap_or_default();
 
                 self.message = format!(
-                    "*** ROOM CLEARED! ***  +{} gold{}  [ Press ENTER ]\n\n{}{}{}",
+                    "*** ROOM CLEARED! ***  +{} gold{}  [ Press ENTER ]\n\n{}{}{}{}",
                     earned,
                     if self.hints_used_room == 0 { " (perfect!)" } else { "" },
                     self.room().narrative.success,
                     item_msg,
+                    codex_msg,
                     alt
                 );
                 self.message_style = Style::default().fg(Color::Yellow);
@@ -346,12 +384,11 @@ impl<'a> App<'a> {
         self.message_scroll = 0;
         let scroll_key = if cfg!(target_os = "macos") { "Fn+↑/↓" } else { "PgUp/Dn" };
         self.message = format!(
-"⌨️  KEYBOARD SHORTCUTS (F2)
+"KEYBOARD SHORTCUTS
 
  GAME
   F5 / Ctrl+R   Run code
   F1            Show hint (-5 HP)
-  F2            This help screen
   {}       Scroll messages
   :             Enter command mode
 
@@ -362,17 +399,22 @@ impl<'a> App<'a> {
   Ctrl+Home/End Start/end of file
 
  EDITING
+  Ctrl+Z        Undo
+  Ctrl+Shift+Z  Redo
+  Ctrl+Y        Yank (copy) line
+  Ctrl+P        Paste line below
   Ctrl+D        Delete entire line
   Ctrl+K        Delete to end of line
   Ctrl+U        Delete to start of line
   Ctrl+W        Delete word before cursor
-  Ctrl+C/X/V    Copy/cut/paste (selection)
 
  COMMANDS (:)
   :q            Quit game
-  :hint         Show hint
+  :keys         This help screen
   :inv          Show inventory
-  :keys         This help", scroll_key);
+  :codex        Open Codex
+  :5            Jump to line 5
+  :top :bot     Jump to start/end", scroll_key);
         self.message_style = Style::default().fg(Color::Cyan);
     }
 
@@ -393,6 +435,63 @@ impl<'a> App<'a> {
         if self.editor.lines().len() > 1 {
             self.editor.delete_newline();
         }
+    }
+
+    fn goto_line(&mut self, line: usize) {
+        let max_line = self.editor.lines().len();
+        let target = line.min(max_line).saturating_sub(1);
+        // Move to top first, then down to target
+        self.editor.move_cursor(tui_textarea::CursorMove::Top);
+        for _ in 0..target {
+            self.editor.move_cursor(tui_textarea::CursorMove::Down);
+        }
+        self.editor.move_cursor(tui_textarea::CursorMove::Head);
+        self.message = format!("Line {}/{}", target + 1, max_line);
+        self.message_style = Style::default().fg(Color::DarkGray);
+    }
+
+    fn goto_top(&mut self) {
+        self.editor.move_cursor(tui_textarea::CursorMove::Top);
+        self.editor.move_cursor(tui_textarea::CursorMove::Head);
+    }
+
+    fn goto_bottom(&mut self) {
+        self.editor.move_cursor(tui_textarea::CursorMove::Bottom);
+        self.editor.move_cursor(tui_textarea::CursorMove::Head);
+    }
+
+    fn yank_line(&mut self) {
+        let (row, _) = self.editor.cursor();
+        if let Some(line) = self.editor.lines().get(row) {
+            self.yank_buffer = line.clone();
+            self.message = format!("Yanked: {}",
+                if self.yank_buffer.len() > 40 {
+                    format!("{}...", &self.yank_buffer[..40])
+                } else {
+                    self.yank_buffer.clone()
+                });
+            self.message_style = Style::default().fg(Color::DarkGray);
+        }
+    }
+
+    fn paste_line(&mut self) {
+        if self.yank_buffer.is_empty() {
+            self.message = "Nothing to paste. Use Ctrl+Y to yank a line first.".to_string();
+            self.message_style = Style::default().fg(Color::DarkGray);
+            return;
+        }
+        let (row, _) = self.editor.cursor();
+        if self.is_line_locked(row) {
+            self.message = "Cannot paste on a locked line.".to_string();
+            self.message_style = Style::default().fg(Color::Magenta);
+            return;
+        }
+        // Go to end of current line, insert newline, then insert yanked content
+        self.editor.move_cursor(tui_textarea::CursorMove::End);
+        self.editor.insert_newline();
+        self.editor.insert_str(&self.yank_buffer);
+        self.message = "Pasted line below.".to_string();
+        self.message_style = Style::default().fg(Color::DarkGray);
     }
 
     fn show_hint(&mut self) {
@@ -438,7 +537,19 @@ fn main() -> Result<()> {
     loop {
         terminal.draw(|f| draw_ui(f, &app))?;
 
-        if let Event::Key(key) = event::read()? {
+        let event = event::read()?;
+
+        // Ignore mouse events
+        if matches!(event, Event::Mouse(_)) {
+            continue;
+        }
+
+        if let Event::Key(key) = event {
+            // Global Ctrl+C handler - always quit
+            if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
+                break;
+            }
+
             match app.state {
                 GameState::TitleScreen => {
                     match key.code {
@@ -459,6 +570,31 @@ fn main() -> Result<()> {
                 GameState::RoomComplete => {
                     match key.code {
                         KeyCode::Enter => app.advance_room(),
+                        KeyCode::Esc => {
+                            // Return to playing state (escape from stuck states)
+                            app.state = GameState::Playing;
+                            app.message = "Press F5 to run your solution.".to_string();
+                            app.message_style = Style::default().fg(Color::Yellow);
+                        }
+                        KeyCode::PageDown => {
+                            let lines = app.message.lines().count() as u16;
+                            if app.message_scroll < lines.saturating_sub(5) {
+                                app.message_scroll += 3;
+                            }
+                        }
+                        KeyCode::PageUp => {
+                            app.message_scroll = app.message_scroll.saturating_sub(3);
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+                GameState::RoomTransition => {
+                    match key.code {
+                        KeyCode::Enter => {
+                            // Load the next room after showing transition
+                            app.load_room(app.current_room + 1);
+                        }
                         KeyCode::PageDown => {
                             let lines = app.message.lines().count() as u16;
                             if app.message_scroll < lines.saturating_sub(5) {
@@ -504,6 +640,23 @@ fn main() -> Result<()> {
                 GameState::GameOver => {
                     break;
                 }
+                GameState::ViewingCodex => {
+                    match key.code {
+                        KeyCode::Esc | KeyCode::Enter => {
+                            app.state = GameState::Playing;
+                        }
+                        KeyCode::Up => {
+                            app.codex_scroll = app.codex_scroll.saturating_sub(1);
+                        }
+                        KeyCode::Down => {
+                            if app.codex_scroll < app.codex.len().saturating_sub(1) {
+                                app.codex_scroll += 1;
+                            }
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
                 GameState::Playing => {}
             }
 
@@ -521,14 +674,54 @@ fn main() -> Result<()> {
                             app.message = "There is no save... only survival.".to_string();
                             app.message_style = Style::default().fg(Color::Yellow);
                         } else if app.command_buffer == "help" {
-                            app.message = "Commands: :q (quit), :hint (show hint), :inv (inventory)".to_string();
+                            app.message = "Commands: :q :keys :inv :codex :hint | Type :? for all shortcuts".to_string();
                             app.message_style = Style::default().fg(Color::Cyan);
                         } else if app.command_buffer == "hint" {
                             app.show_hint();
                         } else if app.command_buffer == "inv" || app.command_buffer == "inventory" {
                             app.show_inventory();
-                        } else if app.command_buffer == "keys" || app.command_buffer == "shortcuts" {
+                        } else if app.command_buffer == "keys" || app.command_buffer == "shortcuts" || app.command_buffer == "?" {
                             app.show_keys();
+                        } else if app.command_buffer == "codex" || app.command_buffer == "j" {
+                            if app.codex.is_empty() {
+                                app.message = "Your codex is empty. Solve puzzles to learn!".to_string();
+                                app.message_style = Style::default().fg(Color::DarkGray);
+                            } else {
+                                app.command_mode = false;
+                                app.command_buffer.clear();
+                                app.state = GameState::ViewingCodex;
+                                app.codex_scroll = 0;
+                                continue;
+                            }
+                        } else if app.command_buffer == "skip" {
+                            // Debug: skip to next level
+                            let next = app.current_level + 1;
+                            match app.load_level(next) {
+                                Ok(()) => {
+                                    app.message = format!("Skipped to Level {}", next);
+                                    app.message_style = Style::default().fg(Color::Yellow);
+                                }
+                                Err(e) => {
+                                    app.message = format!("Cannot skip: {}", e);
+                                    app.message_style = Style::default().fg(Color::Red);
+                                }
+                            }
+                        } else if app.command_buffer == "restart" {
+                            app.start_game();
+                        } else if app.command_buffer == "top" || app.command_buffer == "0" {
+                            app.goto_top();
+                        } else if app.command_buffer == "bot" || app.command_buffer == "$" {
+                            app.goto_bottom();
+                        } else if let Some(line_str) = app.command_buffer.strip_prefix("goto ") {
+                            if let Ok(line) = line_str.trim().parse::<usize>() {
+                                app.goto_line(line);
+                            } else {
+                                app.message = format!("Invalid line number: {}", line_str);
+                                app.message_style = Style::default().fg(Color::Red);
+                            }
+                        } else if let Ok(line) = app.command_buffer.parse::<usize>() {
+                            // Bare number = goto line
+                            app.goto_line(line);
                         } else if !app.command_buffer.is_empty() {
                             app.message = format!("Unknown command: {}", app.command_buffer);
                             app.message_style = Style::default().fg(Color::Red);
@@ -554,6 +747,7 @@ fn main() -> Result<()> {
                 (KeyCode::Char(':'), KeyModifiers::NONE) => {
                     app.command_mode = true;
                     app.command_buffer.clear();
+                    app.message_scroll = 0;  // Reset scroll so command is visible
                 }
                 (KeyCode::Esc, _) => {
                     app.message = "Type :q to quit".to_string();
@@ -580,6 +774,31 @@ fn main() -> Result<()> {
                 }
                 (KeyCode::Char('d'), KeyModifiers::CONTROL) => {
                     app.delete_line();
+                }
+                (KeyCode::Home, KeyModifiers::CONTROL) => {
+                    app.goto_top();
+                }
+                (KeyCode::End, KeyModifiers::CONTROL) => {
+                    app.goto_bottom();
+                }
+                (KeyCode::Char('g'), KeyModifiers::CONTROL) => {
+                    // Show current position
+                    let (row, col) = app.editor.cursor();
+                    let max = app.editor.lines().len();
+                    app.message = format!("Line {}/{}, Col {}", row + 1, max, col + 1);
+                    app.message_style = Style::default().fg(Color::DarkGray);
+                }
+                (KeyCode::Char('y'), KeyModifiers::CONTROL) => {
+                    app.yank_line();
+                }
+                (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+                    app.paste_line();
+                }
+                (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
+                    app.editor.undo();
+                }
+                (KeyCode::Char('Z'), KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+                    app.editor.redo();
                 }
                 _ => {
                     let (cursor_row, _) = app.editor.cursor();
@@ -644,6 +863,11 @@ fn main() -> Result<()> {
 fn draw_ui(f: &mut Frame, app: &App) {
     if matches!(app.state, GameState::TitleScreen) {
         draw_title_screen(f, app);
+        return;
+    }
+
+    if matches!(app.state, GameState::ViewingCodex) {
+        draw_codex(f, app);
         return;
     }
 
@@ -730,6 +954,10 @@ fn draw_ui(f: &mut Frame, app: &App) {
                 Style::default().fg(Color::Black).bg(Color::Green),
                 " VICTORY! "
             ),
+            GameState::RoomTransition => (
+                Style::default().fg(Color::Cyan),
+                " Descending... "
+            ),
             GameState::LevelComplete => (
                 Style::default().fg(Color::Black).bg(Color::Yellow),
                 " LEVEL COMPLETE! "
@@ -738,7 +966,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
                 Style::default().fg(Color::White).bg(Color::Red),
                 " GAME OVER "
             ),
-            GameState::Playing | GameState::TitleScreen => (app.message_style, " Compiler Whispers "),
+            GameState::Playing | GameState::TitleScreen | GameState::ViewingCodex => (app.message_style, " Compiler Whispers "),
         }
     };
     let scroll_indicator = if app.message.lines().count() > 8 {
@@ -765,6 +993,91 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
 fn render_editor(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(&app.editor, area);
+}
+
+fn draw_codex(f: &mut Frame, app: &App) {
+    let area = f.area();
+
+    // Build codex content
+    let mut lines: Vec<Line> = vec![
+        Line::from(vec![
+            Span::styled(
+                "══════════════════════════════════════════════════",
+                Style::default().fg(Color::Yellow),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                "              ADVENTURER'S CODEX",
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                "══════════════════════════════════════════════════",
+                Style::default().fg(Color::Yellow),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled(
+                "  Knowledge gained from the depths of the dungeon.",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled(
+                "  Press Esc to close. ↑/↓ to scroll.",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]),
+        Line::from(""),
+    ];
+
+    // Add each codex entry with its description
+    for entry in app.codex.iter() {
+        lines.push(Line::from(vec![
+            Span::styled("  ◆ ", Style::default().fg(Color::Green)),
+            Span::styled(
+                &entry.title,
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            ),
+        ]));
+
+        for desc_line in entry.description.lines() {
+            lines.push(Line::from(vec![
+                Span::styled(
+                    format!("      {}", desc_line),
+                    Style::default().fg(Color::White),
+                ),
+            ]));
+        }
+        lines.push(Line::from(""));
+    }
+
+    // Show locked entries hint
+    let total_possible = 6; // 3 rooms × 2 levels
+    let unlocked = app.codex.len();
+    if unlocked < total_possible {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("  ○ {} more entries to discover...", total_possible - unlocked),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]));
+    }
+
+    let codex = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Yellow))
+                .title(" Codex [Esc to close] "),
+        )
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(codex, area);
 }
 
 fn draw_title_screen(f: &mut Frame, app: &App) {

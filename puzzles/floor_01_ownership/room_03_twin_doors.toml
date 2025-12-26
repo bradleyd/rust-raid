@@ -5,6 +5,13 @@ title = "The Twin Doors"
 concept = "clone_to_keep"
 
 [narrative]
+entry = """
+You descend worn stone steps, the scroll tucked safely away.
+
+The stairway opens into a grand hall. Twin archways
+loom at the far end, their surfaces gleaming faintly.
+"""
+
 intro = """
 Two identical doors block your path. Each bears the same lock.
 A single iron key hangs on the wall between them.
@@ -31,8 +38,8 @@ failure_output = "The doors shudder but don't open. The ritual failed."
 
 hints = [
     "Each unlock() consumes the key. You're trying to use one key twice.",
-    "You need TWO keys. Rust has a way to duplicate values: .clone()",
-    "Clone the key before the first unlock: let key2 = key.clone();"
+    "There's only ONE key on the wall. But Rust can duplicate values: .clone()",
+    "Clone the key: let key2 = key.clone(); then use key2 for the second door."
 ]
 
 alternative_solution = "Tried borrowing? It won't work here—both doors CONSUME their keys. When two places need ownership, clone() is your only option. Use it wisely; it has a cost."
@@ -40,12 +47,17 @@ alternative_solution = "Tried borrowing? It won't work here—both doors CONSUME
 [puzzle]
 code = '''
 fn main() {
-    let key = String::from("IRON_KEY_001");
+    let key = take_key_from_wall();
 
     unlock_left_door(key);
     unlock_right_door(key);
 
     println!("Both doors opened!");
+}
+
+fn take_key_from_wall() -> String {
+    println!("*You take the single iron key*");
+    String::from("IRON_KEY_001")
 }
 
 fn unlock_left_door(k: String) {
@@ -57,11 +69,12 @@ fn unlock_right_door(k: String) {
 }
 '''
 
-expected_output = """Left door unlocked with IRON_KEY_001
+expected_output = """*You take the single iron key*
+Left door unlocked with IRON_KEY_001
 Right door unlocked with IRON_KEY_001
 Both doors opened!"""
 
-locked_lines = [10, 11, 12, 13, 14, 15, 16]
+locked_lines = [2, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 
 [scoring]
 par_time_seconds = 150
@@ -71,3 +84,18 @@ wrong_answer_penalty_hp = 2
 [rewards]
 grants_item = "Twin Keys"
 item_description = "Two identical iron keys, duplicated through the power of clone()."
+
+[codex]
+title = "Clone"
+description = """
+When two places need to OWN the same value,
+use .clone() to create a duplicate.
+
+  let key = String::from("IRON");
+  let key2 = key.clone();  // full copy
+
+  unlock_left(key);   // key consumed
+  unlock_right(key2); // key2 consumed
+
+Cloning costs memory. Prefer borrowing when possible.
+"""

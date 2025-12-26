@@ -2,75 +2,85 @@
 id = "crystal-ball"
 room_number = 1
 title = "The Crystal Ball"
-concept = "multiple_immutable_borrows"
+concept = "multiple_readers_ok"
 
 [narrative]
+entry = """
+The stone stairs spiral downward into darkness. The air grows colder.
+
+You emerge into Level 2: The Borrowing Depths.
+
+Here, data is not just moved—it is SHARED. But sharing has rules...
+"""
+
 intro = """
-A crystal ball rests on a velvet pillow. Three seers surround it,
-each wanting to gaze into its depths simultaneously.
+A crystal ball pulses with pale light in the center of the room.
 
-"We only wish to look," they say. "None of us will disturb it."
+You need the visions it holds, but so do your companions.
+Can three adventurers peer into the same orb at once?
 
-The current spell tries to give the ball to each seer. But there's
-only one ball, and giving it away means losing it...
+The code looks suspicious... but perhaps it works?
+Try running it.
 """
 
 success = """
-The three seers peer into the crystal together, each seeing their
-own visions. The ball remains undisturbed on its pillow.
+All three of you gaze into the orb simultaneously.
+It shows each of you the path ahead. No conflict.
 
-> WORDS OF WISDOM: Multiple immutable borrows (&) can coexist.
-> If everyone is just reading, there's no conflict. "Many readers,
-> no writers" is always safe. This is Rust's superpower for
-> concurrent read access.
+> WORDS OF WISDOM: Multiple read-only borrows (&) can
+> coexist. If no one is changing the data, sharing is safe.
+>
+> Many readers = OK. Writers are where it gets tricky.
 
-The visions align. The path forward becomes clear...
+A hidden door grinds open. The depths await.
 """
 
-failure_compile = "The crystal clouds over. The spell's logic is flawed..."
-failure_output = "The seers see nothing. The ritual failed."
+failure_compile = "The orb flickers. Something is wrong..."
+failure_output = "The visions are unclear."
 
 hints = [
-    "Each gaze() takes ownership. But the seers only need to LOOK.",
-    "Use & to let each seer borrow the ball without taking it.",
-    "Change gaze(ball) to gaze(&ball) and update the function signature."
+    "This code might already work. Have you tried running it?",
+    "Multiple & references to the same data are allowed.",
+    "Press F5 to run. Sometimes the answer is: it just works."
 ]
-
-alternative_solution = "Did you clone the ball for each seer? That works, but borrowing is cheaper—no copies needed when everyone just wants to read."
 
 [puzzle]
 code = '''
 fn main() {
-    let ball = String::from("visions of futures untold");
+    let orb = String::from("The treasure lies below");
 
-    gaze_seer_one(ball);
-    gaze_seer_two(ball);
-    gaze_seer_three(ball);
+    let gaze1 = &orb;
+    let gaze2 = &orb;
+    let gaze3 = &orb;
 
-    println!("The ball remains: {}", ball);
-}
-
-fn gaze_seer_one(b: String) {
-    println!("Seer 1 sees: {b}");
-}
-
-fn gaze_seer_two(b: String) {
-    println!("Seer 2 sees: {b}");
-}
-
-fn gaze_seer_three(b: String) {
-    println!("Seer 3 sees: {b}");
+    println!("You see: {gaze1}");
+    println!("Ally sees: {gaze2}");
+    println!("Scout sees: {gaze3}");
 }
 '''
 
-expected_output = """Seer 1 sees: visions of futures untold
-Seer 2 sees: visions of futures untold
-Seer 3 sees: visions of futures untold
-The ball remains: visions of futures untold"""
+expected_output = """You see: The treasure lies below
+Ally sees: The treasure lies below
+Scout sees: The treasure lies below"""
 
-locked_lines = [9]
+locked_lines = [2, 4, 5, 6, 8, 9, 10]
 
 [scoring]
-par_time_seconds = 180
+par_time_seconds = 60
 hint_penalty_hp = 5
 wrong_answer_penalty_hp = 2
+
+[codex]
+title = "Multiple Readers"
+description = """
+Multiple & references can exist at the same time.
+If no one is writing, sharing is safe.
+
+  let orb = String::from("vision");
+  let gaze1 = &orb;  // reader 1
+  let gaze2 = &orb;  // reader 2
+  let gaze3 = &orb;  // reader 3
+  // All three can read simultaneously!
+
+Many readers = OK. Writers are where it gets tricky.
+"""

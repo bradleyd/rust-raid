@@ -1,63 +1,95 @@
 [meta]
-id = "cursed-mirror"
+id = "sealed-door"
 room_number = 3
-title = "The Cursed Mirror"
-concept = "no_mixed_borrows"
+title = "The Sealed Door"
+concept = "mutable_references"
 
 [narrative]
+entry = """
+The gate rises with a thunderous rumble.
+
+Beyond it, a vast chamber opens. Dust motes drift
+in shafts of pale light from cracks above.
+
+Something large blocks the far exit...
+"""
+
 intro = """
-A cursed mirror hangs on the wall. To break the curse, you must
-read the inscription AND modify it at the same time.
+A massive stone door blocks the exit. Ancient runes glow
+on its surface: "SEALED"
 
-But the mirror's magic is ancient and strict: while anyone is
-reading, no one may write. While anyone writes, no one may read.
+Your disarm_trap spell can change the runes to "OPENED"...
+but the spell consumes whatever it touches! After casting,
+the door vanishes completely.
 
-The current spell tries to hold a reader and a writer simultaneously...
+You need a spell that MODIFIES the door, not consumes it.
 """
 
 success = """
-You release the reading lens, then take up the chisel. The inscription
-changes. The curse lifts, and your reflection returns to normal.
+The runes shift and change. "SEALED" becomes "OPENED".
+The door rumbles aside - still intact, but now passable!
 
-> WORDS OF WISDOM: You cannot have &mut while any & exists.
-> Readers assume data won't change under them. A writer would
-> violate that trust. "Readers OR a writer, never both."
-> This is Rust's key insight for memory safety.
+> WORDS OF WISDOM: Use &mut when you need to MODIFY data:
+>
+>   fn look(s: &str)         - borrow to READ
+>   fn change(s: &mut String) - borrow to MODIFY
+>   fn consume(s: String)     - take OWNERSHIP (destroy)
+>
+> &mut = modify in place, caller keeps the data.
 
-The mirror clears. Level 2 complete!
+Light streams in from beyond. Level 2 complete!
 """
 
-failure_compile = "The mirror cracks. Reading and writing cannot coexist..."
-failure_output = "The curse remains. The inscription is unchanged."
+failure_compile = "The spell fizzles. The incantation is wrong..."
+failure_output = "The runes flicker but don't change."
 
 hints = [
-    "You have an immutable borrow (&) and then try to get a mutable one (&mut).",
-    "The reader 'reflection' is still alive when you try to modify the mirror.",
-    "Use the reflection BEFORE taking the mutable borrow, or drop it first."
+    "disarm_trap takes ownership (String), but you need the door afterward.",
+    "The function MODIFIES the door - it needs &mut, not ownership.",
+    "Change 'door: String' to 'door: &mut String', and call with disarm_trap(&mut door)."
 ]
 
-alternative_solution = "The fix is about ordering: finish all reads before you write. Rust's borrow checker ensures readers never see data changing mid-read."
+alternative_solution = "Three ways to pass data: own it (consume), &borrow (read), &mut borrow (modify). Choose based on what the function needs to DO."
 
 [puzzle]
 code = '''
 fn main() {
-    let mut mirror = String::from("CURSED");
+    let mut door = String::from("SEALED");
 
-    let reflection = &mirror;
-    let chisel = &mut mirror;
+    disarm_trap(door);
 
-    println!("Reading: {reflection}");
-    chisel.push_str(" NO MORE");
-    println!("After: {mirror}");
+    println!("The door reads: {door}");
+}
+
+fn disarm_trap(mut door: String) {
+    door.clear();
+    door.push_str("OPENED");
+    println!("*ancient gears grind*");
 }
 '''
 
-expected_output = """Reading: CURSED
-After: CURSED NO MORE"""
+expected_output = """*ancient gears grind*
+The door reads: OPENED"""
 
-locked_lines = [2, 10]
+locked_lines = [2, 6, 10, 11, 12]
 
 [scoring]
 par_time_seconds = 180
 hint_penalty_hp = 5
 wrong_answer_penalty_hp = 2
+
+[codex]
+title = "Mutable References"
+description = """
+Three ways to pass data to a function:
+
+  fn consume(s: String)     // takes ownership
+  fn read(s: &String)       // borrows to READ
+  fn modify(s: &mut String) // borrows to MODIFY
+
+Use &mut when the function needs to change data
+but the caller wants to keep it afterward.
+
+  modify(&mut door);  // door is changed
+  println!("{door}"); // door still exists!
+"""
