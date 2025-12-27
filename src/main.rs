@@ -128,6 +128,7 @@ impl<'a> App<'a> {
         let floor_name = match level {
             1 => "floor_01_ownership",
             2 => "floor_02_borrowing",
+            3 => "floor_03_patterns",
             _ => return Err(format!("Level {} not implemented yet", level)),
         };
         let floor_path = std::path::Path::new("puzzles").join(floor_name);
@@ -213,12 +214,13 @@ impl<'a> App<'a> {
             let level_name = match self.current_level {
                 1 => "Ownership",
                 2 => "Borrowing",
+                3 => "Patterns",
                 _ => "Unknown",
             };
-            let next_action = if self.current_level < 2 {
-                "Press ENTER to descend to Level 2: Borrowing..."
-            } else {
-                "Press ENTER to continue..."
+            let next_action = match self.current_level {
+                1 => "Press ENTER to descend to Level 2: Borrowing...",
+                2 => "Press ENTER to descend to Level 3: Patterns...",
+                _ => "Press ENTER to continue...",
             };
 
             self.message = format!(
@@ -611,7 +613,7 @@ fn main() -> Result<()> {
                 GameState::LevelComplete => {
                     match key.code {
                         KeyCode::Enter => {
-                            if app.current_level < 2 {
+                            if app.current_level < 3 {
                                 match app.load_level(app.current_level + 1) {
                                     Ok(()) => {}
                                     Err(e) => {
@@ -693,18 +695,22 @@ fn main() -> Result<()> {
                                 app.codex_scroll = 0;
                                 continue;
                             }
-                        } else if app.command_buffer == "skip" {
-                            // Debug: skip to next level
-                            let next = app.current_level + 1;
-                            match app.load_level(next) {
-                                Ok(()) => {
-                                    app.message = format!("Skipped to Level {}", next);
-                                    app.message_style = Style::default().fg(Color::Yellow);
-                                }
-                                Err(e) => {
-                                    app.message = format!("Cannot skip: {}", e);
-                                    app.message_style = Style::default().fg(Color::Red);
-                                }
+                        } else if app.command_buffer == "xyzzy" {
+                            if app.room().meta.id == "torch" {
+                                app.message = concat!(
+                                    "*** SECRET ROOM ***\n\n",
+                                    "You stand in a room with walls of pure code.\n",
+                                    "Flickering runes on the floor read:\n\n",
+                                    "   'Made by Bradleyd Smith'   "
+                                )
+                                .to_string();
+                                app.message_style = Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD);
+                            } else {
+                                app.message =
+                                    "A hollow voice whispers... 'Nothing happens here.'".to_string();
+                                app.message_style = Style::default().fg(Color::DarkGray);
                             }
                         } else if app.command_buffer == "restart" {
                             app.start_game();
@@ -836,18 +842,33 @@ fn main() -> Result<()> {
 
     match app.state {
         GameState::LevelComplete => {
-            if app.current_level >= 2 {
-                println!("\n=== VICTORY! ===");
-                println!("You've conquered the Borrow Dungeon!");
-                println!("Ownership and Borrowing hold no secrets from you.\n");
-                println!("Final Stats:");
-                println!("  Gold: {}", app.gold);
-                println!("  HP: {}", app.hp);
-                println!("  Items: {}\n", app.inventory.join(", "));
+            if app.current_level >= 3 {
+                println!();
+                println!("    ╔═══════════════════════════════════════════════════╗");
+                println!("    ║                                                   ║");
+                println!("    ║         R U S T   R A I D   C O M P L E T E       ║");
+                println!("    ║                                                   ║");
+                println!("    ║       You have conquered the Borrow Dungeon!      ║");
+                println!("    ║                                                   ║");
+                println!("    ╚═══════════════════════════════════════════════════╝");
+                println!();
+                println!("    The borrow checker bows before your mastery.");
+                println!();
+                println!("    ┌─────────────────────────────────────┐");
+                println!("    │  FINAL STATS                        │");
+                println!("    ├─────────────────────────────────────┤");
+                println!("    │  Gold Collected:    {:>15}  │", app.gold);
+                println!("    │  HP Remaining:      {:>15}  │", app.hp);
+                println!("    │  Codex Entries:     {:>15}  │", format!("{}/9", app.codex.len()));
+                println!("    │  Items:             {:>15}  │", app.inventory.len());
+                println!("    └─────────────────────────────────────┘");
+                println!();
+                println!("    Now go forth and write Rust without fear!");
+                println!();
             } else {
                 println!("\nCongratulations! You've completed Level {}: {}.\n",
                     app.current_level,
-                    match app.current_level { 1 => "Ownership", 2 => "Borrowing", _ => "Unknown" }
+                    match app.current_level { 1 => "Ownership", 2 => "Borrowing", 3 => "Patterns", _ => "Unknown" }
                 );
             }
         }
@@ -1056,7 +1077,7 @@ fn draw_codex(f: &mut Frame, app: &App) {
     }
 
     // Show locked entries hint
-    let total_possible = 6; // 3 rooms × 2 levels
+    let total_possible = 9; // 3 rooms × 3 levels
     let unlocked = app.codex.len();
     if unlocked < total_possible {
         lines.push(Line::from(""));

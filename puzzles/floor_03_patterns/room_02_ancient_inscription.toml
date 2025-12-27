@@ -1,0 +1,95 @@
+[meta]
+id = "ancient-inscription"
+room_number = 2
+title = "The Ancient Inscription"
+concept = "return_borrowed_data"
+
+[narrative]
+entry = """
+Beyond the emptied vault, a corridor of carved stone.
+
+Words cover every surface - but most are faded beyond reading.
+Only fragments remain legible...
+"""
+
+intro = """
+A massive stone tablet. The inscription is long, but you only need
+the first word to identify it.
+
+Your extraction spell creates a COPY of the word - wasteful!
+The stone already holds the text. Why duplicate it?
+
+Point to the word instead of copying it.
+"""
+
+success = """
+Your spell returns a window into the stone's text. No copying needed.
+
+> WORDS OF WISDOM: Return references to avoid allocation.
+>
+>   fn first_word(s: &String) -> &str {
+>       // Return a SLICE of the input, not a new String
+>   }
+>
+> The caller owns the data. You just point to part of it.
+> Slices (&str) are views into Strings - lightweight and fast.
+
+The first word reveals the tablet's origin...
+"""
+
+failure_compile = "The extraction spell shatters. The incantation is wrong..."
+failure_output = "The word is garbled. Something went wrong."
+
+hints = [
+    "The function allocates a new String, but it could just return a reference to part of the input.",
+    "Change the return type from String to &str - a string slice.",
+    "Use &text[..end] to return a slice. The function signature needs: fn first_word(text: &String) -> &str"
+]
+
+alternative_solution = "In real Rust, you'd take &str as input too (not &String). But we're focusing on the return type here."
+
+[puzzle]
+code = '''
+fn main() {
+    let inscription = String::from("ANCIENT treasure map");
+
+    let word = first_word(&inscription);
+    println!("First word: {}", word);
+    println!("Full text: {}", inscription);
+}
+
+fn first_word(text: &String) -> String {
+    let bytes = text.as_bytes();
+    for (i, &byte) in bytes.iter().enumerate() {
+        if byte == b' ' {
+            return String::from(&text[..i]);
+        }
+    }
+    String::from(text.as_str())
+}
+'''
+
+expected_output = """First word: ANCIENT
+Full text: ANCIENT treasure map"""
+
+locked_lines = [2, 4, 5, 6]
+
+[scoring]
+par_time_seconds = 240
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2
+
+[codex]
+title = "Returning References"
+description = """
+Return a reference (&) instead of allocating new data.
+Slices are views into existing data - no copying.
+
+  fn first_word(s: &String) -> &str {
+      let end = s.find(' ').unwrap_or(s.len());
+      &s[..end]  // slice, not new String
+  }
+
+  let text = String::from("hello world");
+  let word = first_word(&text);  // word points into text
+"""

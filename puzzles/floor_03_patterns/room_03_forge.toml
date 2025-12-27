@@ -1,0 +1,126 @@
+[meta]
+id = "guardian"
+room_number = 3
+title = "The Guardian"
+concept = "combining_patterns"
+
+[narrative]
+entry = """
+The forge's heat fades behind you. Ahead, a massive chamber.
+
+Something stirs in the darkness. Red eyes open.
+The Guardian of the Dungeon awakens...
+"""
+
+intro = """
+A stone golem blocks the exit! You must defeat it to escape.
+
+Your combat spell tracks hits on the monster. Three hits to win!
+But your code keeps losing track of the hit counter...
+
+The counter must SURVIVE the battle. Borrow it, don't consume it!
+"""
+
+success = """
+*CRACK*  The Guardian staggers...
+
+*CRUMBLE*  Fissures spread across its stone body...
+
+*CRASH*  It collapses! Rubble explodes across the chamber!
+
+    ╔═══════════════════════════════════════════╗
+    ║                                           ║
+    ║      THE GUARDIAN HAS BEEN DEFEATED!      ║
+    ║                                           ║
+    ╚═══════════════════════════════════════════╝
+
+Light streams through the shattered ceiling. You've done it.
+
+> FINAL WISDOM: You now think like the borrow checker:
+>
+>   - Every value has ONE owner
+>   - Borrow (&) to read, borrow (&mut) to modify
+>   - Clone only when you truly need two owners
+>   - Ask "who OWNS this?" at every step
+>
+> The borrow checker was never your enemy.
+> It was your guide all along.
+
+You step through the rubble into the sunlight beyond...
+
+    ═══════════════════════════════════════════
+           RUST RAID: DUNGEON COMPLETE
+    ═══════════════════════════════════════════
+
+      You have mastered OWNERSHIP & BORROWING
+
+    ═══════════════════════════════════════════
+"""
+
+failure_compile = "Your attack fizzles! The spell is malformed..."
+failure_output = "The Guardian laughs. Your attacks did nothing."
+
+hints = [
+    "record_hit takes ownership of hits, but the loop needs it on the next iteration.",
+    "record_hit should borrow mutably: fn record_hit(hits: &mut i32)",
+    "Change to: record_hit(&mut hits) and fn record_hit(hits: &mut i32) { *hits += 1; }"
+]
+
+alternative_solution = "The pattern: loop owns the counter, functions borrow (&mut) to modify it. Only at the end would you 'consume' if needed."
+
+[puzzle]
+code = '''
+fn main() {
+    let attacks = vec!["Slash", "Stab", "Crush"];
+    let mut hits = 0;
+
+    println!("The Guardian awakens!");
+
+    for attack in &attacks {
+        println!("You use {}!", attack);
+        record_hit(hits);
+        println!("Hits: {}", hits);
+    }
+
+    if hits >= 3 {
+        println!("The Guardian is defeated!");
+    }
+}
+
+fn record_hit(mut hits: i32) {
+    hits += 1;
+}
+'''
+
+expected_output = """The Guardian awakens!
+You use Slash!
+Hits: 1
+You use Stab!
+Hits: 2
+You use Crush!
+Hits: 3
+The Guardian is defeated!"""
+
+locked_lines = [2, 5, 7, 8, 10, 13, 14, 15, 16]
+
+[scoring]
+par_time_seconds = 240
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2
+
+[codex]
+title = "Ownership Mindset"
+description = """
+The complete pattern for ownership:
+
+  1. Ask "who needs to OWN this data?"
+  2. Everyone else BORROWS (& or &mut)
+  3. Pass &mut to modify without consuming
+  4. Only the final destination takes ownership
+
+  let mut counter = 0;
+  for item in &collection {  // borrow collection
+      process(&mut counter); // borrow counter
+  }
+  // counter and collection still valid!
+"""

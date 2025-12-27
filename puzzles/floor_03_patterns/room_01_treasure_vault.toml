@@ -1,0 +1,107 @@
+[meta]
+id = "treasure-vault"
+room_number = 1
+title = "The Treasure Vault"
+concept = "iterate_without_consuming"
+
+[narrative]
+entry = """
+The stairs descend further than before. The air grows thick.
+
+You enter Level 3: The Pattern Chambers.
+
+Here, the lessons combine. You must think like the compiler...
+"""
+
+intro = """
+A vault filled with treasure chests. You need to COUNT them
+for your map, then TAKE them with you.
+
+But your counting spell consumes everything it touches!
+After counting, the chests are gone...
+
+There must be a way to look without taking.
+"""
+
+success = """
+You count each chest without disturbing them. Then you collect them all.
+
+> WORDS OF WISDOM: `for item in collection` MOVES the collection.
+> Use `for item in &collection` to BORROW while iterating.
+>
+>   for chest in &vault { ... }  // vault still yours after
+>   for chest in vault { ... }   // vault consumed!
+>
+> Iterate by reference when you need the data afterward.
+
+The vault is empty now - all treasures secured!
+"""
+
+failure_compile = "The counting spell fizzles. The incantation is flawed..."
+failure_output = "You counted wrong. The map is useless."
+
+hints = [
+    "The for loop is consuming the vault. After the loop, vault is gone.",
+    "You can iterate over references instead: for chest in &vault",
+    "Borrow the vault during iteration: &vault. Then you still own it for take_treasure."
+]
+
+alternative_solution = "You could also use vault.iter() which borrows automatically."
+
+[puzzle]
+code = '''
+fn main() {
+    let vault = vec!["Gold", "Silver", "Gems"];
+
+    let count = count_treasures(vault);
+    println!("Found {} chests", count);
+
+    take_treasures(vault);
+}
+
+fn count_treasures(items: Vec<&str>) -> usize {
+    let mut count = 0;
+    for item in items {
+        println!("Counting: {}", item);
+        count += 1;
+    }
+    count
+}
+
+fn take_treasures(items: Vec<&str>) {
+    for item in items {
+        println!("Taking: {}", item);
+    }
+}
+'''
+
+expected_output = """Counting: Gold
+Counting: Silver
+Counting: Gems
+Found 3 chests
+Taking: Gold
+Taking: Silver
+Taking: Gems"""
+
+locked_lines = [5, 6, 8, 17, 18, 19, 20, 21]
+
+[scoring]
+par_time_seconds = 180
+hint_penalty_hp = 5
+wrong_answer_penalty_hp = 2
+
+[codex]
+title = "Iterating by Reference"
+description = """
+`for x in collection` consumes the collection.
+`for x in &collection` borrows it - you keep ownership.
+
+  let items = vec!["a", "b", "c"];
+
+  for x in &items {  // borrow
+      println!("{}", x);
+  }
+
+  // items still valid here!
+  println!("{} items", items.len());
+"""
