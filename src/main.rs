@@ -25,7 +25,7 @@ enum GameState {
     TitleScreen,
     Playing,
     RoomComplete,
-    RoomTransition,  // Shows entry narrative when moving to next room
+    RoomTransition, // Shows entry narrative when moving to next room
     LevelComplete,
     ViewingCodex,
     GameOver,
@@ -194,10 +194,12 @@ impl<'a> App<'a> {
             if self.current_level == 1 {
                 let has_scroll = self.inventory.iter().any(|i| i == "Sacred Scroll");
                 if !has_scroll {
-                    self.message = "The twin doors swing open, but an invisible barrier blocks your path.\n\n\
+                    self.message =
+                        "The twin doors swing open, but an invisible barrier blocks your path.\n\n\
                         \"You cannot pass without the Sacred Scroll. There is knowledge\n\
                         inscribed upon it that you will need in the depths below.\"\n\n\
-                        Perhaps you missed something in an earlier chamber...".to_string();
+                        Perhaps you missed something in an earlier chamber..."
+                            .to_string();
                     self.message_style = Style::default().fg(Color::Magenta);
                     return;
                 }
@@ -208,7 +210,11 @@ impl<'a> App<'a> {
             let inventory_display = if self.inventory.is_empty() {
                 "  (empty)".to_string()
             } else {
-                self.inventory.iter().map(|i| format!("  - {}", i)).collect::<Vec<_>>().join("\n")
+                self.inventory
+                    .iter()
+                    .map(|i| format!("  - {}", i))
+                    .collect::<Vec<_>>()
+                    .join("\n")
             };
 
             let level_name = match self.current_level {
@@ -271,7 +277,10 @@ impl<'a> App<'a> {
                 // Collect item if room grants one
                 let item_info = self.room().rewards.as_ref().and_then(|r| {
                     r.grants_item.as_ref().map(|item| {
-                        let desc = r.item_description.as_deref().unwrap_or("A mysterious artifact");
+                        let desc = r
+                            .item_description
+                            .as_deref()
+                            .unwrap_or("A mysterious artifact");
                         (item.clone(), desc.to_string())
                     })
                 });
@@ -288,7 +297,10 @@ impl<'a> App<'a> {
                     if !self.codex.iter().any(|e| e.title == entry.title) {
                         let title = entry.title.clone();
                         self.codex.push(entry);
-                        format!("\n\n** CODEX UPDATED: {} **\nType :codex to review your knowledge.", title)
+                        format!(
+                            "\n\n** CODEX UPDATED: {} **\nType :codex to review your knowledge.",
+                            title
+                        )
                     } else {
                         String::new()
                     }
@@ -307,7 +319,11 @@ impl<'a> App<'a> {
                 self.message = format!(
                     "*** ROOM CLEARED! ***  +{} gold{}  [ Press ENTER ]\n\n{}{}{}{}",
                     earned,
-                    if self.hints_used_room == 0 { " (perfect!)" } else { "" },
+                    if self.hints_used_room == 0 {
+                        " (perfect!)"
+                    } else {
+                        ""
+                    },
                     self.room().narrative.success,
                     item_msg,
                     codex_msg,
@@ -338,9 +354,15 @@ impl<'a> App<'a> {
                 let expected_lines = expected.lines().count();
                 let got_lines = got.lines().count();
                 let line_hint = if got_lines > expected_lines {
-                    format!("\n\n(Your output has {} lines, expected {}—are you printing too much?)", got_lines, expected_lines)
+                    format!(
+                        "\n\n(Your output has {} lines, expected {}—are you printing too much?)",
+                        got_lines, expected_lines
+                    )
                 } else if got_lines < expected_lines {
-                    format!("\n\n(Your output has {} lines, expected {}—are you missing something?)", got_lines, expected_lines)
+                    format!(
+                        "\n\n(Your output has {} lines, expected {}—are you missing something?)",
+                        got_lines, expected_lines
+                    )
                 } else {
                     String::new()
                 };
@@ -365,14 +387,18 @@ impl<'a> App<'a> {
         if self.inventory.is_empty() {
             self.message = "🎒 INVENTORY\n\n  (empty)\n\n  Your bag is light. Solve puzzles to collect artifacts!".to_string();
         } else {
-            let items: Vec<String> = self.inventory.iter().map(|item| {
-                let emoji = match item.as_str() {
-                    "Sacred Scroll" => "📜",
-                    "Twin Keys" => "🗝️",
-                    _ => "✨",
-                };
-                format!("  {} {}", emoji, item)
-            }).collect();
+            let items: Vec<String> = self
+                .inventory
+                .iter()
+                .map(|item| {
+                    let emoji = match item.as_str() {
+                        "Sacred Scroll" => "📜",
+                        "Twin Keys" => "🗝️",
+                        _ => "✨",
+                    };
+                    format!("  {} {}", emoji, item)
+                })
+                .collect();
             self.message = format!(
                 "🎒 INVENTORY\n\n{}\n\n  {} item(s) collected",
                 items.join("\n"),
@@ -384,9 +410,13 @@ impl<'a> App<'a> {
 
     fn show_keys(&mut self) {
         self.message_scroll = 0;
-        let scroll_key = if cfg!(target_os = "macos") { "Fn+↑/↓" } else { "PgUp/Dn" };
+        let scroll_key = if cfg!(target_os = "macos") {
+            "Fn+↑/↓"
+        } else {
+            "PgUp/Dn"
+        };
         self.message = format!(
-"KEYBOARD SHORTCUTS
+            "KEYBOARD SHORTCUTS
 
  GAME
   F5 / Ctrl+R   Run code
@@ -416,14 +446,17 @@ impl<'a> App<'a> {
   :inv          Show inventory
   :codex        Open Codex
   :5            Jump to line 5
-  :top :bot     Jump to start/end", scroll_key);
+  :top :bot     Jump to start/end",
+            scroll_key
+        );
         self.message_style = Style::default().fg(Color::Cyan);
     }
 
     fn delete_line(&mut self) {
         let (row, _) = self.editor.cursor();
         if self.is_line_locked(row) {
-            self.message = "That line is sealed by ancient magic. It cannot be changed.".to_string();
+            self.message =
+                "That line is sealed by ancient magic. It cannot be changed.".to_string();
             self.message_style = Style::default().fg(Color::Magenta);
             return;
         }
@@ -466,12 +499,14 @@ impl<'a> App<'a> {
         let (row, _) = self.editor.cursor();
         if let Some(line) = self.editor.lines().get(row) {
             self.yank_buffer = line.clone();
-            self.message = format!("Yanked: {}",
+            self.message = format!(
+                "Yanked: {}",
                 if self.yank_buffer.len() > 40 {
                     format!("{}...", &self.yank_buffer[..40])
                 } else {
                     self.yank_buffer.clone()
-                });
+                }
+            );
             self.message_style = Style::default().fg(Color::DarkGray);
         }
     }
@@ -558,12 +593,10 @@ fn main() -> Result<()> {
                         KeyCode::Up | KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('k') => {
                             app.menu_selection = app.menu_selection.next();
                         }
-                        KeyCode::Enter => {
-                            match app.menu_selection {
-                                MenuOption::NewGame => app.start_game(),
-                                MenuOption::Quit => break,
-                            }
-                        }
+                        KeyCode::Enter => match app.menu_selection {
+                            MenuOption::NewGame => app.start_game(),
+                            MenuOption::Quit => break,
+                        },
                         KeyCode::Char('q') => break,
                         _ => {}
                     }
@@ -676,17 +709,23 @@ fn main() -> Result<()> {
                             app.message = "There is no save... only survival.".to_string();
                             app.message_style = Style::default().fg(Color::Yellow);
                         } else if app.command_buffer == "help" {
-                            app.message = "Commands: :q :keys :inv :codex :hint | Type :? for all shortcuts".to_string();
+                            app.message =
+                                "Commands: :q :keys :inv :codex :hint | Type :? for all shortcuts"
+                                    .to_string();
                             app.message_style = Style::default().fg(Color::Cyan);
                         } else if app.command_buffer == "hint" {
                             app.show_hint();
                         } else if app.command_buffer == "inv" || app.command_buffer == "inventory" {
                             app.show_inventory();
-                        } else if app.command_buffer == "keys" || app.command_buffer == "shortcuts" || app.command_buffer == "?" {
+                        } else if app.command_buffer == "keys"
+                            || app.command_buffer == "shortcuts"
+                            || app.command_buffer == "?"
+                        {
                             app.show_keys();
                         } else if app.command_buffer == "codex" || app.command_buffer == "j" {
                             if app.codex.is_empty() {
-                                app.message = "Your codex is empty. Solve puzzles to learn!".to_string();
+                                app.message =
+                                    "Your codex is empty. Solve puzzles to learn!".to_string();
                                 app.message_style = Style::default().fg(Color::DarkGray);
                             } else {
                                 app.command_mode = false;
@@ -708,8 +747,8 @@ fn main() -> Result<()> {
                                     .fg(Color::Magenta)
                                     .add_modifier(Modifier::BOLD);
                             } else {
-                                app.message =
-                                    "A hollow voice whispers... 'Nothing happens here.'".to_string();
+                                app.message = "A hollow voice whispers... 'Nothing happens here.'"
+                                    .to_string();
                                 app.message_style = Style::default().fg(Color::DarkGray);
                             }
                         } else if app.command_buffer == "restart" {
@@ -753,7 +792,7 @@ fn main() -> Result<()> {
                 (KeyCode::Char(':'), KeyModifiers::NONE) => {
                     app.command_mode = true;
                     app.command_buffer.clear();
-                    app.message_scroll = 0;  // Reset scroll so command is visible
+                    app.message_scroll = 0; // Reset scroll so command is visible
                 }
                 (KeyCode::Esc, _) => {
                     app.message = "Type :q to quit".to_string();
@@ -814,9 +853,8 @@ fn main() -> Result<()> {
                     );
 
                     if is_destructive && app.is_line_locked(cursor_row) {
-                        app.message =
-                            "That line is sealed by ancient magic. It cannot be changed."
-                                .to_string();
+                        app.message = "That line is sealed by ancient magic. It cannot be changed."
+                            .to_string();
                         app.message_style = Style::default().fg(Color::Magenta);
                     } else {
                         app.editor.input(key);
@@ -828,9 +866,7 @@ fn main() -> Result<()> {
         if app.hp == 0 {
             app.state = GameState::GameOver;
             app.message = "OWNED\n\nThe borrow checker wins. Your HP has reached zero.".to_string();
-            app.message_style = Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD);
+            app.message_style = Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);
             terminal.draw(|f| draw_ui(f, &app))?;
             std::thread::sleep(std::time::Duration::from_secs(3));
             break;
@@ -859,16 +895,25 @@ fn main() -> Result<()> {
                 println!("    ├─────────────────────────────────────┤");
                 println!("    │  Gold Collected:    {:>15}  │", app.gold);
                 println!("    │  HP Remaining:      {:>15}  │", app.hp);
-                println!("    │  Codex Entries:     {:>15}  │", format!("{}/9", app.codex.len()));
+                println!(
+                    "    │  Codex Entries:     {:>15}  │",
+                    format!("{}/9", app.codex.len())
+                );
                 println!("    │  Items:             {:>15}  │", app.inventory.len());
                 println!("    └─────────────────────────────────────┘");
                 println!();
                 println!("    Now go forth and write Rust without fear!");
                 println!();
             } else {
-                println!("\nCongratulations! You've completed Level {}: {}.\n",
+                println!(
+                    "\nCongratulations! You've completed Level {}: {}.\n",
                     app.current_level,
-                    match app.current_level { 1 => "Ownership", 2 => "Borrowing", 3 => "Patterns", _ => "Unknown" }
+                    match app.current_level {
+                        1 => "Ownership",
+                        2 => "Borrowing",
+                        3 => "Patterns",
+                        _ => "Unknown",
+                    }
                 );
             }
         }
@@ -919,10 +964,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
             Style::default().fg(Color::White).bg(Color::DarkGray),
         ),
         Span::raw("  "),
-        Span::styled(
-            room_progress,
-            Style::default().fg(Color::Cyan),
-        ),
+        Span::styled(room_progress, Style::default().fg(Color::Cyan)),
         Span::raw("  "),
         Span::styled(
             format!(" Gold: {} ", app.gold),
@@ -968,26 +1010,28 @@ fn draw_ui(f: &mut Frame, app: &App) {
         app.message.clone()
     };
     let (message_style, message_title) = if app.command_mode {
-        (Style::default().fg(Color::White).bg(Color::DarkGray), " Command ")
+        (
+            Style::default().fg(Color::White).bg(Color::DarkGray),
+            " Command ",
+        )
     } else {
         match app.state {
             GameState::RoomComplete => (
                 Style::default().fg(Color::Black).bg(Color::Green),
-                " VICTORY! "
+                " VICTORY! ",
             ),
-            GameState::RoomTransition => (
-                Style::default().fg(Color::Cyan),
-                " Descending... "
-            ),
+            GameState::RoomTransition => (Style::default().fg(Color::Cyan), " Descending... "),
             GameState::LevelComplete => (
                 Style::default().fg(Color::Black).bg(Color::Yellow),
-                " LEVEL COMPLETE! "
+                " LEVEL COMPLETE! ",
             ),
             GameState::GameOver => (
                 Style::default().fg(Color::White).bg(Color::Red),
-                " GAME OVER "
+                " GAME OVER ",
             ),
-            GameState::Playing | GameState::TitleScreen | GameState::ViewingCodex => (app.message_style, " Compiler Whispers "),
+            GameState::Playing | GameState::TitleScreen | GameState::ViewingCodex => {
+                (app.message_style, " Compiler Whispers ")
+            }
         }
     };
     let scroll_indicator = if app.message.lines().count() > 8 {
@@ -1021,37 +1065,29 @@ fn draw_codex(f: &mut Frame, app: &App) {
 
     // Build codex content
     let mut lines: Vec<Line> = vec![
-        Line::from(vec![
-            Span::styled(
-                "══════════════════════════════════════════════════",
-                Style::default().fg(Color::Yellow),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "              ADVENTURER'S CODEX",
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "══════════════════════════════════════════════════",
-                Style::default().fg(Color::Yellow),
-            ),
-        ]),
+        Line::from(vec![Span::styled(
+            "══════════════════════════════════════════════════",
+            Style::default().fg(Color::Yellow),
+        )]),
+        Line::from(vec![Span::styled(
+            "              ADVENTURER'S CODEX",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(vec![Span::styled(
+            "══════════════════════════════════════════════════",
+            Style::default().fg(Color::Yellow),
+        )]),
         Line::from(""),
-        Line::from(vec![
-            Span::styled(
-                "  Knowledge gained from the depths of the dungeon.",
-                Style::default().fg(Color::DarkGray),
-            ),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "  Press Esc to close. ↑/↓ to scroll.",
-                Style::default().fg(Color::DarkGray),
-            ),
-        ]),
+        Line::from(vec![Span::styled(
+            "  Knowledge gained from the depths of the dungeon.",
+            Style::default().fg(Color::DarkGray),
+        )]),
+        Line::from(vec![Span::styled(
+            "  Press Esc to close. ↑/↓ to scroll.",
+            Style::default().fg(Color::DarkGray),
+        )]),
         Line::from(""),
     ];
 
@@ -1061,17 +1097,17 @@ fn draw_codex(f: &mut Frame, app: &App) {
             Span::styled("  ◆ ", Style::default().fg(Color::Green)),
             Span::styled(
                 &entry.title,
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]));
 
         for desc_line in entry.description.lines() {
-            lines.push(Line::from(vec![
-                Span::styled(
-                    format!("      {}", desc_line),
-                    Style::default().fg(Color::White),
-                ),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                format!("      {}", desc_line),
+                Style::default().fg(Color::White),
+            )]));
         }
         lines.push(Line::from(""));
     }
@@ -1081,12 +1117,13 @@ fn draw_codex(f: &mut Frame, app: &App) {
     let unlocked = app.codex.len();
     if unlocked < total_possible {
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled(
-                format!("  ○ {} more entries to discover...", total_possible - unlocked),
-                Style::default().fg(Color::DarkGray),
+        lines.push(Line::from(vec![Span::styled(
+            format!(
+                "  ○ {} more entries to discover...",
+                total_possible - unlocked
             ),
-        ]));
+            Style::default().fg(Color::DarkGray),
+        )]));
     }
 
     let codex = Paragraph::new(lines)
@@ -1142,7 +1179,10 @@ fn draw_title_screen(f: &mut Frame, app: &App) {
     f.render_widget(title, chunks[0]);
 
     let new_game_style = if matches!(app.menu_selection, MenuOption::NewGame) {
-        Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };
@@ -1152,7 +1192,10 @@ fn draw_title_screen(f: &mut Frame, app: &App) {
     f.render_widget(new_game, chunks[1]);
 
     let quit_style = if matches!(app.menu_selection, MenuOption::Quit) {
-        Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(Color::White)
     };

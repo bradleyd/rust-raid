@@ -30,7 +30,7 @@ pub struct RoomMeta {
 #[derive(Debug, Deserialize)]
 pub struct Narrative {
     #[serde(default)]
-    pub entry: Option<String>,  // Shown when entering room (transition from previous)
+    pub entry: Option<String>, // Shown when entering room (transition from previous)
     pub intro: String,
     pub success: String,
     pub failure_compile: String,
