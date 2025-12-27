@@ -217,17 +217,8 @@ impl<'a> App<'a> {
                     .join("\n")
             };
 
-            let level_name = match self.current_level {
-                1 => "Ownership",
-                2 => "Borrowing",
-                3 => "Patterns",
-                _ => "Unknown",
-            };
-            let next_action = match self.current_level {
-                1 => "Press ENTER to descend to Level 2: Borrowing...",
-                2 => "Press ENTER to descend to Level 3: Patterns...",
-                _ => "Press ENTER to continue...",
-            };
+            let level_name = parse_level_name(self.current_level);
+            let next_action = parse_level_action(self.current_level);
 
             self.message = format!(
                 "=== LEVEL {} COMPLETE! ===\n\n\
@@ -1208,4 +1199,21 @@ fn draw_title_screen(f: &mut Frame, app: &App) {
         .style(Style::default().fg(Color::DarkGray))
         .alignment(ratatui::layout::Alignment::Center);
     f.render_widget(help, chunks[3]);
+}
+
+fn parse_level_name(level: usize) -> String {
+    match level {
+        1 => "Ownership".to_string(),
+        2 => "Borrowing".to_string(),
+        3 => "Patterns".to_string(),
+        _ => "Unknown".to_string(),
+    }
+}
+
+fn parse_level_action(level: usize) -> String {
+    match level {
+        1 => "Press ENTER to descend to Level 2: Borrowing...".to_string(),
+        2 => "Press ENTER to descend to Level 3: Patterns...".to_string(),
+        _ => "Press ENTER to continue...".to_string(),
+    }
 }
